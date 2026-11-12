@@ -335,7 +335,12 @@ export function resolveAddProjectPath(input: {
   if (isExplicitRelativeProjectPath(rawPath) && !input.currentProjectCwd) {
     return { ok: false, error: "Relative paths require an active project in this environment." };
   }
-  const path = resolveProjectPathForDispatch(rawPath, input.currentProjectCwd);
+  const path = resolveProjectPathForDispatch(
+    input.platform.toLowerCase().startsWith("win") && rawPath.startsWith("//")
+      ? rawPath.replaceAll("/", "\\")
+      : rawPath,
+    input.currentProjectCwd,
+  );
   return path.length === 0 ? { ok: false, error: "Enter a project path." } : { ok: true, path };
 }
 

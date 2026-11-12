@@ -5,6 +5,7 @@ import { EnvironmentId, ProjectId } from "@t3tools/contracts";
 import {
   findExistingAddProject,
   getCloneDestinationForPickedFolder,
+  resolveAddProjectPath,
   getCloneDestinationPath,
   getCloneDirectoryLeafName,
   getCloneDirectoryName,
@@ -211,5 +212,28 @@ describe("add project shared logic", () => {
     expect(findExistingAddProject({ projects, environmentId: env, path: "/repo" })?.id).toBe(
       "project",
     );
+  });
+  it("reuses Windows UNC projects entered with forward slashes", () => {
+    const env = EnvironmentId.make("env");
+    const project = {
+      environmentId: env,
+      id: ProjectId.make("unc"),
+      title: "Repo",
+      workspaceRoot: "\\\\server\\share\\repo",
+      createdAt: "",
+      updatedAt: "",
+      repositoryIdentity: null,
+      defaultModelSelection: null,
+      scripts: [],
+    } satisfies EnvironmentProject;
+    const resolved = resolveAddProjectPath({ rawPath: "//Server/share/repo", platform: "Win32" });
+    expect(
+      resolved.ok &&
+        findExistingAddProject({ projects: [project], environmentId: env, path: resolved.path }),
+    ).toBe(project);
+    expect(resolveAddProjectPath({ rawPath: "//server/share/a\\b", platform: "Linux" })).toEqual({
+      ok: true,
+      path: "//server/share/a\\b",
+    });
   });
 });
