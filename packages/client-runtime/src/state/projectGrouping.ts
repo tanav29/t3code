@@ -68,6 +68,18 @@ function deriveRepositoryRelativeProjectPath(
   return normalizedProjectPath.slice(rootPrefix.length).replaceAll("\\", "/");
 }
 
+export function isRepositoryRoot(
+  project: Pick<EnvironmentProject, "workspaceRoot" | "repositoryIdentity">,
+): boolean {
+  return deriveRepositoryRelativeProjectPath(project) === "";
+}
+
+export function selectRepositoryRoot<
+  TProject extends Pick<EnvironmentProject, "workspaceRoot" | "repositoryIdentity">,
+>(projects: ReadonlyArray<TProject>): TProject | undefined {
+  return projects.find(isRepositoryRoot) ?? projects[0];
+}
+
 export function derivePhysicalProjectKeyFromPath(environmentId: string, cwd: string): string {
   return `${environmentId}:${normalizeProjectPathForComparison(cwd)}`;
 }
@@ -356,10 +368,12 @@ export function buildProjectGroups<TProject extends EnvironmentProject>(input: {
 
   const preferredEnvironmentId = input.preferredEnvironmentId ?? null;
   return Array.from(groupedMembers, ([key, members]) => {
-    const representative =
-      (preferredEnvironmentId
-        ? members.find((member) => member.project.environmentId === preferredEnvironmentId)?.project
-        : null) ?? members[0]!.project;
+    const preferred = preferredEnvironmentId
+      ? members.filter((member) => member.project.environmentId === preferredEnvironmentId)
+      : [];
+    const representative = selectRepositoryRoot(
+      (preferred.length > 0 ? preferred : members).map((member) => member.project),
+    )!;
     return {
       key,
       label:

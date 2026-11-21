@@ -421,3 +421,27 @@ describe("sortProjectsByGroupOrder", () => {
     expect(sorted.map((entry) => entry.environmentId)).toEqual([remote, environmentId]);
   });
 });
+
+it("prefers the repository root in the preferred environment", () => {
+  const remote = EnvironmentId.make("remote");
+  const identity = { ...repositoryIdentity, rootPath: "/repo" };
+  const projects = [
+    makeProject("child", "/repo/child", { repositoryIdentity: identity }),
+    makeProject("root", "/repo", { repositoryIdentity: identity }),
+    makeProject("remote-child", "/repo/child", {
+      environmentId: remote,
+      repositoryIdentity: identity,
+    }),
+    makeProject("remote-root", "/repo", { environmentId: remote, repositoryIdentity: identity }),
+  ];
+  expect(
+    buildProjectGroups({ projects, settings: settings("repository") })[0]?.representative.id,
+  ).toBe("root");
+  expect(
+    buildProjectGroups({
+      projects,
+      settings: settings("repository"),
+      preferredEnvironmentId: remote,
+    })[0]?.representative.id,
+  ).toBe("remote-root");
+});

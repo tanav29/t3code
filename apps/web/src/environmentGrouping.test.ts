@@ -279,6 +279,39 @@ describe("environment grouping", () => {
     });
   });
 
+  it("uses the repository root on the preferred environment for another group", () => {
+    const current = makeProject({
+      id: ProjectId.make("current"),
+      environmentId: remoteEnvironmentId,
+    });
+    const identity = { ...repositoryIdentity, rootPath: "/repo" };
+    const child = makeProject({
+      id: ProjectId.make("child"),
+      environmentId: remoteEnvironmentId,
+      workspaceRoot: "/repo/child",
+      repositoryIdentity: identity,
+    });
+    const root = makeProject({
+      id: ProjectId.make("root"),
+      environmentId: remoteEnvironmentId,
+      workspaceRoot: "/repo",
+      repositoryIdentity: identity,
+    });
+    const groups = buildSidebarProjectSnapshots({
+      projects: [current, child, root],
+      settings: defaultGroupingSettings,
+      primaryEnvironmentId,
+      resolveEnvironmentLabel: () => null,
+    });
+    const entries = buildSidebarProjectPickerEntries({
+      groups,
+      preferredProjectRef: { environmentId: current.environmentId, projectId: current.id },
+    });
+    expect(
+      entries.find((entry) => entry.group.projectKey === identity.canonicalKey)?.targetProject.id,
+    ).toBe(root.id);
+  });
+
   it("puts the preferred project after pinned projects", () => {
     const project = (title: string, pinnedAt: string | null = null) =>
       makeProject({

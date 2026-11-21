@@ -58,6 +58,34 @@ function makeScope(projects: ReadonlyArray<EnvironmentProject>): HomeProjectScop
 }
 
 describe("getProjectScopeSelectionTarget", () => {
+  it("chooses the root in the connected preferred environment", () => {
+    const identity = {
+      canonicalKey: "github.com/example/repo",
+      locator: {
+        source: "git-remote" as const,
+        remoteName: "origin",
+        remoteUrl: "https://github.com/example/repo.git",
+      },
+      rootPath: "/repo",
+    };
+    const child = {
+      ...makeProject("child", "server", { workspaceRoot: "/repo/child" }),
+      repositoryIdentity: identity,
+    };
+    const root = {
+      ...makeProject("root", "server", { workspaceRoot: "/repo" }),
+      repositoryIdentity: identity,
+    };
+    const scope = { ...makeScope([child, root]), representative: root };
+    expect(
+      getProjectScopeSelectionTarget(
+        scope,
+        EnvironmentId.make("server"),
+        new Set([EnvironmentId.make("server")]),
+      ),
+    ).toBe(root);
+  });
+
   it("prefers a connected copy of a project that spans environments", () => {
     const mac = makeProject("t3code", "mac");
     const server = makeProject("t3code", "server");
@@ -78,6 +106,31 @@ describe("getProjectScopeSelectionTarget", () => {
 });
 
 describe("resolveEnvironmentProjectMatch", () => {
+  it("keeps the repository root when switching environments", () => {
+    const identity = {
+      canonicalKey: "github.com/example/repo",
+      locator: {
+        source: "git-remote" as const,
+        remoteName: "origin",
+        remoteUrl: "https://github.com/example/repo.git",
+      },
+      rootPath: "/repo",
+    };
+    const root = {
+      ...makeProject("root", "mac", { workspaceRoot: "/repo" }),
+      repositoryIdentity: identity,
+    };
+    const child = {
+      ...makeProject("child", "server", { workspaceRoot: "/repo/child" }),
+      repositoryIdentity: identity,
+    };
+    const remoteRoot = {
+      ...makeProject("remote-root", "server", { workspaceRoot: "/repo" }),
+      repositoryIdentity: identity,
+    };
+    expect(resolveEnvironmentProjectMatch([child, remoteRoot], root)).toBe(remoteRoot);
+  });
+
   it("follows the same repository onto the target machine", () => {
     const selected = makeProject("t3code", "mac", { repositoryKey: "github.com/t3tools/t3code" });
     const target = [

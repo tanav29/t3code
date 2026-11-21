@@ -1,3 +1,7 @@
+import {
+  isRepositoryRoot,
+  selectRepositoryRoot,
+} from "@t3tools/client-runtime/state/project-grouping";
 import type { EnvironmentConnectionPhase } from "@t3tools/client-runtime/connection";
 import { availableScratchWorkspaceRoot } from "@t3tools/client-runtime/operations/projects";
 import type { EnvironmentProject } from "@t3tools/client-runtime/state/shell";
@@ -24,10 +28,14 @@ export function getProjectScopeSelectionTarget(
   const rank = (project: EnvironmentProject) =>
     project.environmentId === preferredEnvironmentId ? 0 : project === scope.representative ? 1 : 2;
   const ordered = [...scope.projects].sort((left, right) => rank(left) - rank(right));
-  return (
+  const target =
     ordered.find((project) => connectedEnvironmentIds.has(project.environmentId)) ??
     ordered[0] ??
-    scope.representative
+    scope.representative;
+  return (
+    selectRepositoryRoot(
+      ordered.filter((project) => project.environmentId === target.environmentId),
+    ) ?? target
   );
 }
 
@@ -91,15 +99,20 @@ export function resolveEnvironmentProjectMatch(
       : null;
     return repositoryKey !== null && projectKey !== null && projectKey !== repositoryKey;
   };
-  return (
-    (repositoryKey !== null
-      ? projectsOnTarget.find(
+  const repositoryMatches =
+    repositoryKey === null
+      ? []
+      : projectsOnTarget.filter(
           (project) =>
-            (project.repositoryIdentity
-              ? repositoryGroupingKeyOf(project.repositoryIdentity)
-              : null) === repositoryKey,
-        )
-      : undefined) ??
+            project.repositoryIdentity &&
+            repositoryGroupingKeyOf(project.repositoryIdentity) === repositoryKey,
+        );
+  const repositoryMatch =
+    selectedProject && isRepositoryRoot(selectedProject)
+      ? selectRepositoryRoot(repositoryMatches)
+      : repositoryMatches[0];
+  return (
+    repositoryMatch ??
     (workspaceBasename !== null
       ? projectsOnTarget.find(
           (project) =>
